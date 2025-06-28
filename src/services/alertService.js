@@ -1,21 +1,32 @@
 import { fetchDailyClose } from './stockService.js';
 import { findAll } from '../repositories/subscriptionRepository.js';
 import { calculateRSI } from '../utils/rsiCalculator.js';
+import { evaluateAlert } from './alertEvaluator.js';
 
-export const checkAlertForTicker = async (ticker) => {
+/**
+ * Compute the latest RSI for a ticker.
+ * Throws an error if RSI data is missing or invalid.
+ */
+export const computeRsiForTicker = async (ticker) => {
   const closes = await fetchDailyClose(ticker);
   const rsi = calculateRSI(closes);
-  if (rsi !== undefined && rsi < 30) {
-    console.log(`ALERT: RSI of ${ticker} is ${rsi.toFixed(2)} < 30`);
-    return true;
+  if (rsi === undefined || Number.isNaN(rsi)) {
+    throw new Error('Invalid RSI data');
   }
-  return false;
+  return rsi;
 };
 
 export const alertSubscribers = async () => {
+  // group subscriptions by ticker and evaluate RSI once per ticker
   const subs = await findAll();
   const tickers = [...new Set(subs.map((s) => s.ticker))];
   for (const ticker of tickers) {
-    await checkAlertForTicker(ticker);
+    const tickerSubs = subs.filter((s) => s.ticker === ticker);
+    try {
+      const rsi = await computeRsiForTicker(ticker);
+      tickerSubs.forEach((sub) => evaluateAlert(rsi, sub));
+    } catch (err) {
+      console.error(`Failed RSI for ${ticker}`, err.message);
+    }
   }
 };

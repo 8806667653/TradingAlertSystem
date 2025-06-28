@@ -1,7 +1,7 @@
 import Subscription from '../models/subscription.js';
 
-export const addSubscription = async (userId, ticker) => {
-  const sub = new Subscription({ user: userId, ticker });
+export const addSubscription = async (userId, ticker, entryThreshold, exitThreshold) => {
+  const sub = new Subscription({ user: userId, ticker, entryThreshold, exitThreshold });
   return sub.save();
 };
 
